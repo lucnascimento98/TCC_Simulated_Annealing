@@ -1,10 +1,11 @@
 ﻿//Autor: Lucas Henrique Russo do Nascimento
+using System.Linq;
 
-List<string> Dias = new(){ "Seg", "Ter", "Qua", "Qui", "Sex" };
-List<string> Enfermeiros = new(){ "Ana", "Beto", "Carla", "David", "Emanuel", "Fabiana", "Gabriel", "Gabriel2", "Gabriel3", "Gabriel4", "Gabriel5" };
-List<int> Turnos = new(){ 1, 2, 3 };
-List<int> CargaHoraria = new(){ 40, 40, 40, 40, 40, 40, 40 };
-List<int> qtdHoras = new(){ 8, 8, 8 };
+List<string> Dias = new() { "Seg", "Ter", "Qua", "Qui", "Sex" };
+List<string> Enfermeiros = new() { "Ana", "Beto", "Carla", "David", "Emanuel", "Fabiana", "Gabriel", "Gabriel2", "Gabriel3", "Gabriel4", "Gabriel5" };
+List<int> Turnos = new() { 1, 2, 3 };
+List<int> CargaHoraria = new() { 40, 40, 40, 40, 40, 40, 40 };
+List<int> qtdHoras = new() { 8, 8, 8 };
 
 int[,,] X = new int[Enfermeiros.Count, Dias.Count, Turnos.Count];
 
@@ -23,6 +24,16 @@ int[,] dMax = new int[,] {
     {5, 3, 6},
     {5, 3, 6}
 };
+
+//var dMax = new int[][] {
+//  new int[]  {5, 3, 6},
+//  new int[]  {5, 3, 6},
+//  new int[]  {5, 3, 6},
+//  new int[]  {5, 3, 6},
+//  new int[]  {5, 3, 6}
+//};
+
+//dMax.Select
 
 int[,,] Custo = new int[,,]
 {
@@ -56,7 +67,7 @@ double func(int[,,] Custo, int[,,] X) //calculo da funcao objetivo
 }
 double accept(double z, double maximize, double T)
 {
-    return Math.Min(1, Math.Pow(Math.Exp(1),- (maximize - z) / T));
+    return Math.Min(1, Math.Pow(Math.Exp(1), -(Math.Abs(maximize - z)) / T));
     //return Math.Pow(Math.Exp(1), p);
 }
 double fRand(double fMin, double fMax)
@@ -92,6 +103,7 @@ double Factivel(int[,,] X, double z)
             if (alocados < dMin[Dias.IndexOf(d), Turnos.IndexOf(t)] || alocados > dMax[Dias.IndexOf(d), Turnos.IndexOf(t)])
             {
                 z -= 10;
+                //z *= 0.1;
                 //return "Demanda";
             }
             alocados = 0;
@@ -115,8 +127,8 @@ void MostraX(int[,,] X)
         Console.WriteLine();
     }
 }
-
-for (double porcentagem = 0.5; porcentagem < 5; porcentagem+=0.5)
+var random = new Random();
+for (double porcentagem = 0.5; porcentagem < 5; porcentagem += 0.5)
 {
     //X = new int[,,]{
     //    {{1,0,1}, {1,0,1}, {1,1,0}, {1,1,1}, {1,1,1}},
@@ -137,12 +149,14 @@ for (double porcentagem = 0.5; porcentagem < 5; porcentagem+=0.5)
         {
             foreach (var turno in Turnos)
             {
-                X[Enfermeiros.IndexOf(enf), Dias.IndexOf(dia), Turnos.IndexOf(turno)] = new Random().Next(2);
+                X[Enfermeiros.IndexOf(enf), Dias.IndexOf(dia), Turnos.IndexOf(turno)] = random.Next(2);
             }
         }
     }
+
     //MostraX(X);
-    int[,,] XM;
+    //int[,,] XN = (int[,,])X.Clone();
+    int[,,] XM = (int[,,])X.Clone();
     int[,,] XBOF = (int[,,])X.Clone();
 
     double z = Factivel(X, func(Custo, X));
@@ -162,7 +176,7 @@ for (double porcentagem = 0.5; porcentagem < 5; porcentagem+=0.5)
     while (T > tF)
     {
         int i = 1;
-        XM = (int[,,]) XBOF.Clone();
+        //XM = (int[,,])XBOF.Clone();
         while (i <= 50)
         {
             for (int aux1 = 0; aux1 < alocacoesTrocadas; aux1++)
@@ -175,7 +189,7 @@ for (double porcentagem = 0.5; porcentagem < 5; porcentagem+=0.5)
 
             z = Factivel(X, func(Custo, X));
 
-            if(z > maximize)
+            if (z > maximize)
             {
                 aceito = true;
                 maximize = z;
@@ -237,22 +251,22 @@ for (double porcentagem = 0.5; porcentagem < 5; porcentagem+=0.5)
             //}
 
 
-            //Console.WriteLine(
-            //    " Z = " + Math.Round(z, 6) +
-            //    "\t\t\t max = " + Math.Round(maximize, 6) +
-            //    "\t\t\t T = " + Math.Round(T, 6) +
-            //    "\t\t\t BOF = " + Math.Round(BOF, 6) +
-            //    //"\t\t\t ac = " + Math.Round(ac, 6) +
-            //    "\t\t\t ac = " + aceito);
+            Console.WriteLine(
+                " Z = " + Math.Round(z, 6) +
+                "\t\t\t max = " + Math.Round(maximize, 6) +
+                "\t\t\t T = " + Math.Round(T, 6) +
+                "\t\t\t BOF = " + Math.Round(BOF, 6) +
+                //"\t\t\t ac = " + Math.Round(ac, 6) +
+                "\t\t\t ac = " + aceito);
         }
         T *= a;
         //Task.Delay(100).Wait();
     }
     Console.WriteLine(
-        "\tmax: " + Math.Round(maximize,3) +
-        "\t\tBOF = " + Math.Round(BOF,3) + " " +
+        "\tmax: " + Math.Round(maximize, 3) +
+        "\t\tBOF = " + Math.Round(BOF, 3) + " " +
         "\tporcentagem = " + porcentagem + " " +
-        "\talocacoes trocadas = "+ alocacoesTrocadas);
+        "\talocacoes trocadas = " + alocacoesTrocadas);
     //MostraX(XM);
     //Console.ReadLine();
 }
