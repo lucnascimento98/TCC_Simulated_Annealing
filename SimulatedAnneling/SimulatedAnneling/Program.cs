@@ -1,29 +1,84 @@
 ﻿//Autor: Lucas Henrique Russo do Nascimento
-using System.Linq;
+using Bogus;
+using SimulatedAnneling.InstanceGenerator;
+using SimulatedAnneling.InstanceGenerator.Domain;
+using System.Text.Json;
+
+var physicians = new Faker<Physician>()
+    .RuleFor(p => p.Name, f => f.Name.FirstName())
+    .RuleFor(p => p.Id, f => f.IndexFaker)
+    .RuleFor(p => p.Hours, f => 30 * 8);//.Random.ListItem(new List<int>() {40,32,48}));
+
+var shifts = new Faker<ShiftsPattern>()
+    .RuleFor(x => x.Id, f => f.IndexFaker)
+    .RuleFor(x => x.Hours, f => 8)
+    .RuleFor(x => x.DMin, f => 2)
+    .RuleFor(x => x.DMax, f => f.Random.Int(4, 10));
+
+var period = new Faker<Period>()
+    .RuleFor(x => x.Year, f => f.Random.Int(2000, 2022))
+    .RuleFor(x => x.Month, f => f.Random.Int(1, 12))
+    .RuleFor(x => x.StartDay, f => 1)
+    .RuleFor(x => x.EndDay, f => 30);
+
+var instance = new Faker<Instance>()
+    .RuleFor(x => x.Period, f => period.Generate())
+    .RuleFor(x => x.Physician, f => physicians.Generate(10).ToList())
+    .RuleFor(x => x.Shifts, f => shifts.Generate(3).ToList());
+
+string json = JsonSerializer.Serialize(instance.Generate());
+Instance instancia = JsonSerializer.Deserialize<Instance>(json);
+
+List<int> Dias = new();
+
+for (int i = instancia.Period.StartDay; i <= instancia.Period.EndDay; i++)
+{
+    Dias.Add(i);
+}
+List<string> Enfermeiros = instancia.Physician.Select(x => x.Name).ToList();
+List<int> Turnos = instancia.Shifts.Select(x => x.Id).ToList();
+List<int> CargaHoraria = instancia.Physician.Select(x => x.Hours).ToList();
+List<int> qtdHoras = instancia.Shifts.Select(x => x.Hours).ToList();
+int[,] dMin = new int[Dias.Count, Turnos.Count];
+int[,] dMax = new int[Dias.Count, Turnos.Count];
+for (int i = 0; i < Dias.Count; i++)
+{
+    for (int j = 0; j < Turnos.Count; j++)
+    {
+        dMin[i,j] = instancia.Shifts.Where(x => x.Id == j).First().DMin;
+        dMax[i,j] = instancia.Shifts.Where(x => x.Id == j).First().DMax;
+    }
+}
+Console.WriteLine($"enf = {Enfermeiros.Count}, dias = {Dias.Count} \n" +
+    $"dmin = {{ {dMin[0,0]},{dMin[0, 1]},{dMin[0,2]}}} \n" +
+    $"dmax = {{ {dMax[0, 0]},{dMax[0, 1]},{dMax[0, 2]}}}");
+//return 0;
+
+
 #region Declaração dos dados
-List<string> Dias = new() { "Seg", "Ter", "Qua", "Qui", "Sex" };
-List<string> Enfermeiros = new() { "Ana", "Beto", "Carla", "David", "Emanuel", "Fabiana", "Gabriel", "Gabriel2", "Gabriel3", "Gabriel4", "Gabriel5" };
-List<int> Turnos = new() { 1, 2, 3 };
-List<int> CargaHoraria = new() { 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40 };
-List<int> qtdHoras = new() { 8, 8, 8 };
+//List<string> Dias = new() { "Seg", "Ter", "Qua", "Qui", "Sex" };
+//List<string> Enfermeiros = new() { "Ana", "Beto", "Carla", "David", "Emanuel", "Fabiana", "Gabriel", "Gabriel2", "Gabriel3", "Gabriel4", "Gabriel5" };
+//List<int> Turnos = new() { 1, 2, 3 };
+//List<int> CargaHoraria = new() { 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40 };
+//List<int> qtdHoras = new() { 8, 8, 8 };
 
-int[,,] X = new int[Enfermeiros.Count, Dias.Count, Turnos.Count];
 
-int[,] dMin = new int[,] {
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1}
-};
+//int[,] dMin = new int[,] {
+//    {1, 1, 1},
+//    {1, 1, 1},
+//    {1, 1, 1},
+//    {1, 1, 1},
+//    {1, 1, 1}
+//};
 
-int[,] dMax = new int[,] {
-    {5, 3, 6},
-    {5, 3, 6},
-    {5, 3, 6},
-    {5, 3, 6},
-    {5, 3, 6}
-};
+//int[,] dMax = new int[,] {
+//    {5, 3, 6},
+//    {5, 3, 6},
+//    {5, 3, 6},
+//    {5, 3, 6},
+//    {5, 3, 6}
+//};
+
 
 int[,,] Custo = new int[,,]
 {
@@ -39,6 +94,9 @@ int[,,] Custo = new int[,,]
     {{1,1,1}, {1,1,1}, {1,1,1}, {1,1,1}, {1,1,1}},
     {{1,1,1}, {1,1,1}, {1,1,1}, {1,1,1}, {1,1,1}}
 };
+
+int[,,] X = new int[Enfermeiros.Count, Dias.Count, Turnos.Count];
+
 #endregion 
 #region Calculo da funcao
 double func(int[,,] Custo, int[,,] X) //calculo da funcao objetivo
@@ -50,7 +108,8 @@ double func(int[,,] Custo, int[,,] X) //calculo da funcao objetivo
         {
             foreach (var t in Turnos)
             {
-                sum += Custo[Enfermeiros.IndexOf(e), Dias.IndexOf(d), Turnos.IndexOf(t)] * X[Enfermeiros.IndexOf(e), Dias.IndexOf(d), Turnos.IndexOf(t)];
+                //sum += Custo[Enfermeiros.IndexOf(e), Dias.IndexOf(d), Turnos.IndexOf(t)] * X[Enfermeiros.IndexOf(e), Dias.IndexOf(d), Turnos.IndexOf(t)];
+                sum += X[Enfermeiros.IndexOf(e), Dias.IndexOf(d), Turnos.IndexOf(t)];
             }
         }
     }
@@ -73,6 +132,7 @@ double fRand(double fMin, double fMax)
 double Factivel(int[,,] X, double z, ref int violacoes)
 {
     int sum = 0;
+    int penalizacao = 100000;
     violacoes = 0;
     #region Carga Horaria
     foreach (var e in Enfermeiros)
@@ -84,9 +144,9 @@ double Factivel(int[,,] X, double z, ref int violacoes)
                 sum += X[Enfermeiros.IndexOf(e), Dias.IndexOf(d), Turnos.IndexOf(t)] * qtdHoras[Turnos.IndexOf(t)];
             }
         }
-        if (sum != CargaHoraria[Enfermeiros.IndexOf(e)])
+        if (sum <= CargaHoraria[Enfermeiros.IndexOf(e)])
         {
-            z -= 10;
+            z -= penalizacao;
             violacoes++;
             //Console.WriteLine("CH");
         }
@@ -105,7 +165,7 @@ double Factivel(int[,,] X, double z, ref int violacoes)
             }
             if (sum < dMin[Dias.IndexOf(d), Turnos.IndexOf(t)] || sum > dMax[Dias.IndexOf(d), Turnos.IndexOf(t)])
             {
-                z -= 10;
+                z -= penalizacao;
                 //z *= 0.1;
                 //return "Demanda";
                 violacoes++;
@@ -128,7 +188,7 @@ double Factivel(int[,,] X, double z, ref int violacoes)
             }
             if (sum > 1)
             {
-                z -= 10;
+                z -= penalizacao;
                 violacoes++;
                 //Console.WriteLine("apenas 1 turno");
 
@@ -148,7 +208,7 @@ double Factivel(int[,,] X, double z, ref int violacoes)
             + X[e, d + 1, 1];
             if (sum > 1)
             {
-                z -= 10;
+                z -= penalizacao;
                 violacoes++;
                 //Console.WriteLine($"turnos subsequentes {e} {d}");
 
@@ -178,34 +238,34 @@ void MostraX(int[,,] X)
 }
 #endregion
 #region Implementação da heuristica, começando pelo calculo da porcentagem de busca para cada iteração
-for (double porcentagem = 0.5; porcentagem < 5; porcentagem += 0.5)
+for (double porcentagem = 0.2; porcentagem < 2; porcentagem += 0.2)
 {
     #region Solução inicial melhorada
-    X = new int[,,]{
-        {{1,1,1}, {1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}},
-        {{1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}},
-        {{1,0,0}, {1,0,1}, {1,0,0}, {1,0,0}, {1,0,0}},
-        {{1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}},
-        {{1,0,0}, {1,0,0}, {1,0,0}, {1,1,0}, {1,0,0}},
-        {{0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}}, //fabiana
-        {{0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}}, //gabriel
-        {{0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}},
-        {{0,1,1}, {0,0,0}, {0,0,1}, {0,0,1}, {0,0,1}},
-        {{0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}},
-        {{0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}, {1,0,1}},
-    };
+    //X = new int[,,]{
+    //    {{1,1,1}, {1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}},
+    //    {{1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}},
+    //    {{1,0,0}, {1,0,1}, {1,0,0}, {1,0,0}, {1,0,0}},
+    //    {{1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}, {1,0,0}},
+    //    {{1,0,0}, {1,0,0}, {1,0,0}, {1,1,0}, {1,0,0}},
+    //    {{0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}}, //fabiana
+    //    {{0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}}, //gabriel
+    //    {{0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}, {0,1,0}},
+    //    {{0,1,1}, {0,0,0}, {0,0,1}, {0,0,1}, {0,0,1}},
+    //    {{0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}},
+    //    {{0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}, {1,0,1}},
+    //};
     #endregion
     #region Solução inicial aleatoria
-    //foreach (var enf in Enfermeiros)
-    //{
-    //    foreach (var dia in Dias)
-    //    {
-    //        foreach (var turno in Turnos)
-    //        {
-    //            X[Enfermeiros.IndexOf(enf), Dias.IndexOf(dia), Turnos.IndexOf(turno)] = new Random().Next(2);
-    //        }
-    //    }
-    //}
+    foreach (var enf in Enfermeiros)
+    {
+        foreach (var dia in Dias)
+        {
+            foreach (var turno in Turnos)
+            {
+                X[Enfermeiros.IndexOf(enf), Dias.IndexOf(dia), Turnos.IndexOf(turno)] = new Random().Next(2);
+            }
+        }
+    }
     #endregion
     #region Declaração das variaveis
     //MostraX(X);
@@ -310,14 +370,14 @@ for (double porcentagem = 0.5; porcentagem < 5; porcentagem += 0.5)
             #endregion
 
 
-            Console.WriteLine( //print para debugar a cada iteração
-                " Z = " + Math.Round(z, 6) +
-                "\t\t\t max = " + Math.Round(maximize, 6) +
-                "\t\t\t T = " + Math.Round(T, 6) +
-                "\t\t\t BOF = " + Math.Round(BOF, 6) +
-                "\t\t\t violações = " + violacoes +
-                //"\t\t\t ac = " + Math.Round(ac, 6) +
-                "\t\t\t ac = " + aceito);
+            //Console.WriteLine( //print para debugar a cada iteração
+            //    " Z = " + Math.Round(z, 6) +
+            //    "\t\t\t max = " + Math.Round(maximize, 6) +
+            //    "\t\t\t T = " + Math.Round(T, 6) +
+            //    "\t\t\t BOF = " + Math.Round(BOF, 6) +
+            //    "\t\t\t violações = " + violacoes +
+            //    //"\t\t\t ac = " + Math.Round(ac, 6) +
+            //    "\t\t\t ac = " + aceito);
         }
         T *= a;
         //Task.Delay(100).Wait();
